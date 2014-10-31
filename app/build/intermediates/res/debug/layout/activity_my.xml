@@ -9,9 +9,10 @@
     tools:context=".MyActivity">
 
     <TextView
+        android:id="@+id/my_textView"
         android:text="@string/hello_world"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
 </RelativeLayout>
-<!-- From: file:/C:/Users/wakka/AndroidStudioProjects/IndoorPosition/app/src/main/res/layout/activity_my.xml -->
+<!-- From: file:/C:/Users/UCLAB_T60/AndroidStudioProjects/indoorposition/app/src/main/res/layout/activity_my.xml -->
