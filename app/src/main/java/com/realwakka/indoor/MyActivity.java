@@ -7,10 +7,12 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.opengl.Matrix;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -18,7 +20,7 @@ import java.util.TimerTask;
 
 public class MyActivity extends Activity{
     private TextView mTextView;
-
+    private TextView mFusedView;
     private SensorManager mSensorManager = null;
 
     // angular speeds from gyro
@@ -46,6 +48,8 @@ public class MyActivity extends Activity{
     private float[] rotationMatrix = new float[9];
 
     SensorFusionListener mListener = new SensorFusionListener();
+
+    private int STEP=0;
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my);
@@ -63,8 +67,10 @@ public class MyActivity extends Activity{
         mSensorManager = (SensorManager) this.getSystemService(SENSOR_SERVICE);
 
         mTextView = (TextView) findViewById(R.id.my_textView);
-
+        mFusedView = (TextView) findViewById(R.id.my_velocity);
         initListeners();
+
+        fuseTimer.scheduleAtFixedRate(new calculateFusedOrientationTask(),1000, TIME_CONSTANT);
     }
 
     public void initListeners(){
@@ -79,6 +85,11 @@ public class MyActivity extends Activity{
         mSensorManager.registerListener(mListener,
                 mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
                 SensorManager.SENSOR_DELAY_FASTEST);
+
+        mSensorManager.registerListener(mListener,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR),
+                SensorManager.SENSOR_DELAY_FASTEST);
+
     }
 
     private float[] getTrueAcceleration(float[] accelerometervalues, float[] orientationvalues){
@@ -282,6 +293,14 @@ public class MyActivity extends Activity{
                     // copy new magnetometer data into magnet array
                     System.arraycopy(event.values, 0, magnet, 0, 3);
                     break;
+                case Sensor.TYPE_STEP_DETECTOR:
+                    Log.d("MainActivity","STEP!");
+                    if(event.values.length>0){
+                        STEP++;
+                        mFusedView.setText("STEP!"+STEP);
+                    }
+
+                    break;
 
             }
         }
@@ -289,6 +308,33 @@ public class MyActivity extends Activity{
         @Override
         public void onAccuracyChanged(Sensor sensor, int i) {
 
+        }
+    }
+
+    public static final int TIME_CONSTANT = 30;
+    public static final float FILTER_COEFFICIENT = 0.98f;
+    private Timer fuseTimer = new Timer();
+    class calculateFusedOrientationTask extends TimerTask {
+        public void run() {
+            float oneMinusCoeff = 1.0f - FILTER_COEFFICIENT;
+            fusedOrientation[0] =
+                    FILTER_COEFFICIENT * gyroOrientation[0]
+                            + oneMinusCoeff * accMagOrientation[0];
+
+            fusedOrientation[1] =
+                    FILTER_COEFFICIENT * gyroOrientation[1]
+                            + oneMinusCoeff * accMagOrientation[1];
+
+            fusedOrientation[2] =
+                    FILTER_COEFFICIENT * gyroOrientation[2]
+                            + oneMinusCoeff * accMagOrientation[2];
+
+            // overwrite gyro matrix and orientation with fused orientation
+            // to comensate gyro drift
+            gyroMatrix = getRotationMatrixFromOrientation(fusedOrientation);
+            System.arraycopy(fusedOrientation, 0, gyroOrientation, 0, 3);
+            String str = "x = "+fusedOrientation[0]+"\ny = "+fusedOrientation[1]+"\nz = "+fusedOrientation[2];
+//            Log.d("MyActivity",str);
         }
     }
 }
